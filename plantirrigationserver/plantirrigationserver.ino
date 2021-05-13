@@ -63,12 +63,23 @@ bool validateParams(JsonObject& json, NetworkParams& params) {
   return !errors;
 }
 
-void storeNetworkParams(NetworkParams& params) {
+bool storeNetworkParams(NetworkParams& params) {
   EEPROM.put(EEPROM_ARDRESS, params);
+  return true;
 }
 
-void readNetworkParams(NetworkParams& params) {
+bool readNetworkParams(NetworkParams& params) {
   EEPROM.get(EEPROM_ARDRESS, params);
+  
+  // XXX it will be changed
+  return params.ssid[0] != 0xff;
+}
+
+bool clearNetworkParams() {
+  NetworkParams params;
+  memset(&params, 0xff, sizeof(NetworkParams));
+  storeNetworkParams(params);
+  return true;
 }
 
 void setNetwork() {
@@ -120,6 +131,11 @@ void getNetwork() {
   Serial.print(F("done."));
 }
 
+void clearNetwork() {
+  clearNetworkParams();
+  webServer.send(200, F("text/html"), "Network params deleted!");
+}
+
 // Define routing
 void restServerRouting() {
     webServer.on("/", HTTP_GET, []() {
@@ -128,6 +144,7 @@ void restServerRouting() {
     });
     webServer.on(F("/network"), HTTP_POST, setNetwork);
     webServer.on(F("/network"), HTTP_GET, getNetwork);
+    webServer.on(F("/network"), HTTP_DELETE, clearNetwork);
 }
 
 void setup()
