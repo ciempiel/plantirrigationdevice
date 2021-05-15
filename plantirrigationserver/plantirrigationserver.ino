@@ -65,6 +65,8 @@ bool validateParams(JsonObject& json, NetworkParams& params) {
 
 bool storeNetworkParams(NetworkParams& params) {
   EEPROM.put(EEPROM_ARDRESS, params);
+  EEPROM.commit();
+  
   return true;
 }
 
@@ -147,14 +149,31 @@ void restServerRouting() {
     webServer.on(F("/network"), HTTP_DELETE, clearNetwork);
 }
 
-void setup()
-{
-  Serial.begin(115200);
-  Serial.println();
 
-  EEPROM.begin(512);
-  Serial.print("EEPROM initialized.");
+void setupWiFi(NetworkParams& params) {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(params.ssid, params.password);
+  Serial.println("");
 
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.print("Connected to ");
+  Serial.println(params.ssid);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+
+
+  restServerRouting();
+  webServer.begin();
+}
+
+void setupAP() {
   Serial.print("Setting soft-AP ... ");
   WiFi.softAPConfig(ownIP, gateway, subnet);
   boolean result = WiFi.softAP("PlantServer_01", "12345678");
@@ -163,12 +182,34 @@ void setup()
     Serial.println("Ready");
 
     restServerRouting();
-
     webServer.begin();
   }
   else
   {
     Serial.println("Failed!");
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  
+  Serial.println();
+
+  EEPROM.begin(512);
+  Serial.print("EEPROM initialized.");
+  delay(1000);
+  
+  NetworkParams params;
+  
+  if (readNetworkParams(params)) {
+    Serial.println("WiFi mode");
+    
+    setupWiFi(params);
+  } else {
+    Serial.println("AP mode");
+    
+    setupAP();
   }
 }
 
