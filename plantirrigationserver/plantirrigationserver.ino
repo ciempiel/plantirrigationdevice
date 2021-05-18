@@ -2,20 +2,10 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <ArduinoJson.h>
-#include "EEPROM.h"
+#include "AppParams.h"
 
-#define MAX_SSID 32
-#define MAX_PASSWORD 32
-
-#define EEPROM_ARDRESS 0x0000
-
-struct NetworkParams {
-    char ssid[MAX_SSID + 1];
-    char password[MAX_PASSWORD + 1];
-    uint32_t ownIp;
-    uint32_t gateway;
-    uint32_t subnet;
-};
+#define AP_INDICATOR_LED_PIN 5 // D1
+#define CLEAR_NETWORK_PIN 4 // D2
 
 IPAddress ownIP(192,168,4,22);
 IPAddress gateway(192,168,4,9);
@@ -63,27 +53,6 @@ bool validateParams(JsonObject& json, NetworkParams& params) {
   return !errors;
 }
 
-bool storeNetworkParams(NetworkParams& params) {
-  EEPROM.put(EEPROM_ARDRESS, params);
-  EEPROM.commit();
-  
-  return true;
-}
-
-bool readNetworkParams(NetworkParams& params) {
-  EEPROM.get(EEPROM_ARDRESS, params);
-  
-  // XXX it will be changed
-  return params.ssid[0] != 0xff;
-}
-
-bool clearNetworkParams() {
-  NetworkParams params;
-  memset(&params, 0xff, sizeof(NetworkParams));
-  storeNetworkParams(params);
-  return true;
-}
-
 void setNetwork() {
     String postBody = webServer.arg("plain");
     Serial.println(postBody);
@@ -95,7 +64,7 @@ void setNetwork() {
       NetworkParams params;
 
       if (validateParams(json, params)) {
-        storeNetworkParams(params);
+        AppParams.storeNetworkParams(params);
 
         Serial.print(F("Network params stored!"));
         webServer.send(201, F("text/html"), "Network params stored!");
@@ -117,7 +86,7 @@ void getNetwork() {
   IPAddress address;
   String buf;
 
-  readNetworkParams(params);
+  AppParams.readNetworkParams(params);
   
   doc["ssid"] = params.ssid;
   doc["password"] = params.password;
@@ -134,7 +103,7 @@ void getNetwork() {
 }
 
 void clearNetwork() {
-  clearNetworkParams();
+  AppParams.clearNetworkParams();
   webServer.send(200, F("text/html"), "Network params deleted!");
 }
 
@@ -190,21 +159,16 @@ void setupAP() {
   }
 }
 
-#define AP_INDICATOR_LED_PIN 5 // D1
-#define CLEAR_NETWORK_PIN 4 // D2
-
-
 void setup() {
   Serial.begin(115200);
   delay(500);
-  
+
+  AppParams.init();
   Serial.println();
 
   pinMode(AP_INDICATOR_LED_PIN, OUTPUT);
   pinMode(CLEAR_NETWORK_PIN, INPUT);
 
-  EEPROM.begin(512);
-  Serial.print("EEPROM initialized.");
   delay(500);
 
   for (int i=0; i<100; i++) {
@@ -221,7 +185,7 @@ void setup() {
   
   NetworkParams params;
   
-  if (readNetworkParams(params)) {
+  if (AppParams.readNetworkParams(params)) {
     Serial.println("WiFi mode");
     
     setupWiFi(params);
