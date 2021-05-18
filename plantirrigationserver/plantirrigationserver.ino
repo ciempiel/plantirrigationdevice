@@ -1,7 +1,9 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
-#include <ArduinoJson.h>
+#include <ArduinoJson.h>]
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 #include "AppParams.h"
 
 #define AP_INDICATOR_LED_PIN 5 // D1
@@ -12,6 +14,9 @@ IPAddress gateway(192,168,4,9);
 IPAddress subnet(255,255,255,0);
 
 ESP8266WebServer webServer(80);
+WiFiUDP ntpUDP;
+
+NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 60000);
 
 bool validateString(char* dest, JsonObject& json, const char* name, int maxLength) {
   if (json.containsKey(name)) {
@@ -140,6 +145,8 @@ void setupWiFi(NetworkParams& params) {
 
   restServerRouting();
   webServer.begin();
+  
+  timeClient.begin();
 }
 
 void setupAP() {
@@ -198,5 +205,14 @@ void setup() {
 
 void loop()
 {
+  static bool printTime = true;
+  
   webServer.handleClient();
+
+  timeClient.update();
+
+  if (printTime) {
+    Serial.println(timeClient.getFormattedTime());
+    printTime = false;
+  }
 }
