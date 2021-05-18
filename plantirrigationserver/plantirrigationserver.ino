@@ -190,15 +190,34 @@ void setupAP() {
   }
 }
 
+#define AP_INDICATOR_LED_PIN 5 // D1
+#define CLEAR_NETWORK_PIN 4 // D2
+
+
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  delay(500);
   
   Serial.println();
 
+  pinMode(AP_INDICATOR_LED_PIN, OUTPUT);
+  pinMode(CLEAR_NETWORK_PIN, INPUT);
+
   EEPROM.begin(512);
   Serial.print("EEPROM initialized.");
-  delay(1000);
+  delay(500);
+
+  for (int i=0; i<100; i++) {
+    delay(10);
+    if (digitalRead(CLEAR_NETWORK_PIN) == HIGH) {
+      clearNetwork();
+
+      Serial.println("Network params cleared");
+      break;
+    }
+  }
+  
+  digitalWrite(AP_INDICATOR_LED_PIN, HIGH);
   
   NetworkParams params;
   
